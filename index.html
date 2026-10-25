@@ -14,6 +14,11 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="鰹節削り道場">
+<meta name="twitter:description" content="薄く、たくさん。30秒の鰹節削りミニゲーム。">
+<meta name="twitter:image" content="https://lukyuappi.github.io/Katsuobushi/ogp.png">
+<meta name="twitter:image:alt" content="檜の削り器と鰹節、引き出しにたまった削り節の絵と「鰹節削り道場」の文字">
+<meta property="og:image:alt" content="檜の削り器と鰹節、引き出しにたまった削り節の絵と「鰹節削り道場」の文字">
 <style>
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 body { margin: 0; }
@@ -166,7 +171,8 @@ canvas:active { cursor: grabbing; }
   const BLOCK_WIDTH_CM = 3; // 鰹節の幅（奥行き）
   const DENSITY = 1.1;      // g/cm3
   const PACK_G = 2.5;       // 花かつお小袋1つ分
-  const GAME_URL = 'https://lukyuappi.github.io/Katsuobushi/';
+  // 末尾の ?v= は X に「新しいページ」と思わせて、カード画像を読み直させるため。カードを変えたら数字を上げる
+  const GAME_URL = 'https://lukyuappi.github.io/Katsuobushi/?v=2';
   const HASHTAGS = ['鰹節削り道場'];
 
   let W = 0, H = 0, dpr = 1;
