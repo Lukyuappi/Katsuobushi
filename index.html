@@ -486,10 +486,10 @@ canvas:active { cursor: grabbing; }
     const avgT = lenTotal ? tWeighted / lenTotal : 0;
     const thinRate = flakes ? Math.round(thinFlakes / flakes * 100) : 0;
     let rank, comment;
-    // 段位の基準（30秒用）。実際に遊んで4万点前後が「ふつう」だったので、そこを一人前の手前に置く
-    if (score >= 80000) { rank = '花かつお名人'; comment = '向こうが透けるほどの削り。料亭から声がかかります。'; }
-    else if (score >= 50000) { rank = '一人前の削り師'; comment = 'ふわっと踊る、いい削り節です。'; }
-    else if (score >= 25000) { rank = '見習い'; comment = '力加減をつかみかけています。帯の上のほうを狙って。'; }
+    // 段位の基準（30秒用）。実際に遊んだ感触に合わせて調整済み
+    if (score >= 70000) { rank = '花かつお名人'; comment = '向こうが透けるほどの削り。料亭から声がかかります。'; }
+    else if (score >= 40000) { rank = '一人前の削り師'; comment = 'ふわっと踊る、いい削り節です。'; }
+    else if (score >= 15000) { rank = '見習い'; comment = '力加減をつかみかけています。帯の上のほうを狙って。'; }
     else { rank = '粉がつお'; comment = 'まずは緑の帯の中で、ゆっくり大きく動かしてみましょう。'; }
     const newBest = score > best;
     if (newBest) { best = score; try { localStorage.setItem('katsuo-best', String(best)); } catch (e) {} }
