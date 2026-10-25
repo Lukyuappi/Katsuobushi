@@ -87,6 +87,10 @@ canvas:active { cursor: grabbing; }
 .howto { margin: 0; padding-left: 1.2em; text-align: left; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .howto .band { color: var(--good); font-weight: 700; }
 .howto .warn { color: var(--bad); font-weight: 700; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.share { display: inline-flex; align-items: center; background: var(--fg); color: var(--bg); border-radius: 6px; padding: 10px 18px; font-weight: 700; font-size: 15px; text-decoration: none; letter-spacing: .04em; }
+.share:hover { filter: brightness(0.92); }
+.share:focus-visible { outline: 2px solid var(--hinoki); outline-offset: 2px; }
 .card .best-line { color: var(--hinoki); font-variant-numeric: tabular-nums; }
 </style>
 </head>
@@ -149,6 +153,8 @@ canvas:active { cursor: grabbing; }
   const BLOCK_WIDTH_CM = 3; // 鰹節の幅（奥行き）
   const DENSITY = 1.1;      // g/cm3
   const PACK_G = 2.5;       // 花かつお小袋1つ分
+  const GAME_URL = 'https://lukyuappi.github.io/Katsuobushi/';
+  const HASHTAGS = ['鰹節削り道場', 'かつお節'];
 
   let W = 0, H = 0, dpr = 1;
   let G = {}; // 画面の寸法（W,H から計算）
@@ -480,6 +486,14 @@ canvas:active { cursor: grabbing; }
     hud.best.textContent = Math.max(best, score).toLocaleString();
   }
 
+  // X（旧Twitter）の投稿画面を、成績の文章とハッシュタグを入れた状態で開くリンク
+  function shareLink(rank, avgT) {
+    const text = `鰹節削り道場で「${rank}」になりました！\n`
+      + `${score.toLocaleString()}点／平均の厚さ ${avgT.toFixed(3)}mm／小袋 ${(grams / PACK_G).toFixed(1)} 袋分\n`;
+    const params = new URLSearchParams({ text, url: GAME_URL, hashtags: HASHTAGS.join(',') });
+    return ('https://x.com/intent/tweet?' + params.toString()).replace(/&/g, '&amp;');
+  }
+
   function endGame() {
     if (stroke) finishStroke();
     state = 'result';
@@ -505,7 +519,10 @@ canvas:active { cursor: grabbing; }
         <dt>最大連続</dt><dd>${bestCombo} 枚</dd>
         <dt>自己ベスト</dt><dd>${best.toLocaleString()}</dd>
       </dl>
-      <button class="btn" id="start" type="button">もう一度</button>`);
+      <div class="actions">
+        <a class="share" href="${shareLink(rank, avgT)}" target="_blank" rel="noopener">Xに成績を投稿</a>
+        <button class="btn" id="start" type="button">もう一度</button>
+      </div>`);
     pointer.down = false;
   }
 
