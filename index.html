@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>鰹節削り道場</title>
+<meta name="description" content="鰹節を左右にこすって削る30秒のミニゲーム。力加減を緑の帯に合わせて、薄く、たくさん削るほど高得点。">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* レイアウト: 夜の台所。藍色の地に、檜の削り器を真横から見た一枚の舞台。上に計器、下に遊び方。 */
+:root {
+  --bg: #1b2433;        /* 藍 */
+  --panel: #243046;
+  --fg: #efe6d6;        /* 生成り */
+  --muted: #a9b2c2;
+  --hinoki: #d9b57a;    /* 檜 */
+  --flake: #f3c3a8;     /* 削り節の桜色 */
+  --good: #9fd08f;      /* 若竹 */
+  --bad: #e58a6a;
+  --display: "Yuji Syuku", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: auto; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+  touch-action: manipulation;      /* ダブルタップでの拡大を防ぐ */
+  overscroll-behavior: none;       /* 引っぱって更新を防ぐ */
+  -webkit-tap-highlight-color: transparent;
+}
+@media (max-width: 600px) {
+  body { padding-block: 10px 28px; font-size: 14px; }
+  .wrap { gap: 8px; }
+  h1 small { display: none; }
+}
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 6vw, 40px); margin: 0; letter-spacing: .06em; text-wrap: balance; }
+h1 small { font-family: var(--body); font-size: 13px; color: var(--muted); letter-spacing: .1em; margin-left: .6em; }
+.icon-btn { background: transparent; color: var(--muted); border: 1px solid #3a4862; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.icon-btn:focus-visible, .btn:focus-visible { outline: 2px solid var(--hinoki); outline-offset: 2px; }
+
+.hud { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.hud div { background: var(--panel); border-radius: 6px; padding: 6px 10px; min-width: 0; }
+.hud span { display: block; font-size: 11px; color: var(--muted); letter-spacing: .12em; }
+.hud b { font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 700; }
+@media (max-width: 460px) {
+  .hud { gap: 4px; }
+  .hud div { padding: 4px 6px; }
+  .hud span { font-size: 10px; letter-spacing: .04em; }
+  .hud b { font-size: 15px; }
+  .icon-btn { padding: 4px 8px; font-size: 12px; }
+}
+
+.stage { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: #141b27; }
+canvas { display: block; width: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+canvas:active { cursor: grabbing; }
+
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 20, 30, .78); padding: 16px; }
+.card { text-align: center; max-width: 420px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.card h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 36px); margin: 0; color: var(--hinoki); letter-spacing: .08em; }
+.card p { margin: 0; color: var(--fg); }
+.card .sub { color: var(--muted); font-size: 13px; }
+.stats { display: grid; grid-template-columns: auto auto; gap: 2px 16px; font-variant-numeric: tabular-nums; text-align: left; }
+.stats dt { color: var(--muted); font-size: 13px; }
+.stats dd { margin: 0; font-weight: 700; text-align: right; }
+.btn { background: var(--hinoki); color: #2a1d10; border: 0; border-radius: 6px; padding: 10px 28px; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; letter-spacing: .1em; }
+.btn:hover { filter: brightness(1.08); }
+
+.tools { display: flex; gap: 6px; }
+.hud .best b { color: var(--hinoki); }
+.howto { margin: 0; padding-left: 1.2em; text-align: left; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.howto .band { color: var(--good); font-weight: 700; }
+.howto .warn { color: var(--bad); font-weight: 700; }
+.card .best-line { color: var(--hinoki); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>鰹節削り道場<small>薄く、たくさん</small></h1>
+    <div class="tools">
+      <button class="icon-btn" id="howto-btn" type="button">遊び方</button>
+      <button class="icon-btn" id="restart" type="button">やり直し</button>
+      <button class="icon-btn" id="mute" type="button" aria-pressed="false">音：あり</button>
+    </div>
+  </header>
+
+  <div class="hud" aria-live="polite">
+    <div><span>残り時間</span><b id="hud-time">30.0</b></div>
+    <div><span>点数</span><b id="hud-score">0</b></div>
+    <div><span>削った量</span><b id="hud-gram">0.0 g</b></div>
+    <div><span>連続</span><b id="hud-combo">0</b></div>
+    <div class="best"><span>最高点</span><b id="hud-best">0</b></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="card" id="card">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const stage = document.getElementById('stage');
+  const overlay = document.getElementById('overlay');
+  const card = document.getElementById('card');
+  const hud = {
+    time: document.getElementById('hud-time'),
+    score: document.getElementById('hud-score'),
+    gram: document.getElementById('hud-gram'),
+    combo: document.getElementById('hud-combo'),
+    best: document.getElementById('hud-best'),
+  };
+
+  const HOWTO_HTML = `
+    <ul class="howto">
+      <li>画面のどこを押さえてもOK。押したまま左右にこすると鰹節が動き、真ん中の刃で削れて下の引き出しにたまります。鰹節を指で隠さないよう、少し離れたところを触るのがコツです。</li>
+      <li>指の高さが「押す力」です。<span class="band">緑の帯</span>の中なら薄く、帯の上のほうほどもっと薄く削れます。</li>
+      <li>帯より上だと空振り、下だと厚削り。下げすぎると<span class="warn">ガリッ</span>と刃に引っかかります。</li>
+      <li>帯はゆっくり動き、だんだん細くなります。右端のメーターで今の力が分かります。</li>
+      <li>30秒で、どれだけ薄く、たくさん削れるかを競います。</li>
+    </ul>`;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const GAME_TIME = 30;
+  const THIN_MAX = 0.08;   // mm。これ以下なら「薄削り」
+  const BLOCK_WIDTH_CM = 3; // 鰹節の幅（奥行き）
+  const DENSITY = 1.1;      // g/cm3
+  const PACK_G = 2.5;       // 花かつお小袋1つ分
+
+  let W = 0, H = 0, dpr = 1;
+  let G = {}; // 画面の寸法（W,H から計算）
+
+  // ---- ゲームの状態 ----
+  let state = 'ready';
+  let timeLeft = GAME_TIME, elapsed = 0;
+  let score = 0, grams = 0, flakes = 0, thinFlakes = 0, combo = 0, bestCombo = 0, tWeighted = 0, lenTotal = 0;
+  let zone = { lo: 0.4, hi: 0.56 };
+  let bx = 0;               // 鰹節の中心 x
+  let shrink = 0;           // 削って短くなった分（px）
+  let pointer = { down: false, x: 0, y: 0, grab: 0 };
+  let stunUntil = 0, shake = 0;
+  let stroke = null;        // いま削っている1回分
+  let cutState = 'none';    // none / slip / thin / thick（音と表示用）
+  const particles = [];
+  const settled = [];
+  const popups = [];
+  let pileCanvas = document.createElement('canvas');
+  let best = 0;
+  try { best = Number(localStorage.getItem('katsuo-best')) || 0; } catch (e) {}
+
+  // ---- 寸法 ----
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = stage.clientWidth;
+    if (W < 600) {
+      // スマホ縦向き：画面の残りの高さいっぱいに広げて、指の上下の幅を大きく取る
+      const top = stage.getBoundingClientRect().top + window.scrollY;
+      H = Math.max(320, Math.min(window.innerHeight - top - 10, W * 1.6));
+    } else {
+      H = Math.max(300, Math.min(480, W * 0.64));
+    }
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    G = {
+      planeL: W * 0.05, planeR: W * 0.95,
+      planeTop: H * (W < 600 ? 0.62 : 0.56), planeBot: H * 0.97,
+      bladeX: W * 0.5,
+      fieldTop: H * 0.06,
+      blockH: Math.max(34, Math.min(H * 0.11, W * 0.15)),
+      blockL0: W * 0.34, blockMin: W * 0.13,
+      pxPerCm: W / 36,
+    };
+    // 押す力の範囲は刃の高さまで。緑の帯は必ず刃より上に出る
+    G.fieldBot = G.planeTop - 4;
+    G.drawerTop = G.planeTop + 16;
+    G.drawerBot = G.planeBot - 10;
+    if (!bx) bx = G.planeL + G.blockL0 / 2 + 10;
+    clampBlock();
+    redrawPile();
+  }
+  const blockLen = () => Math.max(G.blockMin, G.blockL0 - shrink);
+  function clampBlock() {
+    const L = blockLen();
+    bx = Math.min(G.planeR - L / 2, Math.max(G.planeL + L / 2, bx));
+  }
+  // 画面の高さ → 押す力（0=弱い, 1=強い）
+  const pressureAt = y => Math.min(1, Math.max(0, (y - G.fieldTop) / (G.fieldBot - G.fieldTop)));
+  const yAt = p => G.fieldTop + p * (G.fieldBot - G.fieldTop);
+
+  // ---- 音（ノイズを帯域フィルタに通して「シャーッ」を作る） ----
+  let audio = null, muted = false;
+  function initAudio() {
+    if (audio) return;
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = ac.createBuffer(1, ac.sampleRate * 1, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+      const filter = ac.createBiquadFilter(); filter.type = 'bandpass'; filter.Q.value = 0.9;
+      const gain = ac.createGain(); gain.gain.value = 0;
+      src.connect(filter).connect(gain).connect(ac.destination);
+      src.start();
+      audio = { ac, filter, gain };
+    } catch (e) { audio = null; }
+  }
+  function updateSound(speed) {
+    if (!audio) return;
+    const t = audio.ac.currentTime;
+    let vol = 0, freq = 4000;
+    if (!muted && state === 'play') {
+      const s = Math.min(1, speed / 12);
+      if (cutState === 'thin') { vol = 0.10 * s; freq = 5200; }
+      else if (cutState === 'thick') { vol = 0.22 * s; freq = 1600; }
+    }
+    audio.gain.gain.setTargetAtTime(vol, t, 0.03);
+    audio.filter.frequency.setTargetAtTime(freq, t, 0.03);
+  }
+  function thud() {
+    if (!audio || muted) return;
+    const ac = audio.ac, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(140, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(50, ac.currentTime + 0.18);
+    g.gain.setValueAtTime(0.35, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
+    o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.22);
+  }
+
+  // ---- 入力 ----
+  function localPos(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  cv.addEventListener('pointerdown', e => {
+    const p = localPos(e);
+    pointer.down = true; pointer.x = p.x; pointer.y = p.y; pointer.grab = bx - p.x;
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => {
+    const p = localPos(e); pointer.x = p.x; pointer.y = p.y;
+  });
+  const up = () => { pointer.down = false; };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', up);
+
+  document.getElementById('mute').addEventListener('click', e => {
+    muted = !muted;
+    e.currentTarget.textContent = muted ? '音：なし' : '音：あり';
+    e.currentTarget.setAttribute('aria-pressed', String(muted));
+  });
+  card.addEventListener('click', e => {
+    if (e.target.id === 'start') startGame();
+    if (e.target.id === 'resume') { state = 'play'; overlay.hidden = true; }
+  });
+  // やり直し：すぐには始めず、開始画面に戻す
+  document.getElementById('restart').addEventListener('click', () => {
+    resetGame();
+    state = 'ready';
+    showStartCard();
+  });
+
+  // 遊び方：ゲーム中なら一時停止してから見せる
+  let stateBeforeHowto = 'ready';
+  document.getElementById('howto-btn').addEventListener('click', () => {
+    if (state === 'howto') return;
+    stateBeforeHowto = state;
+    if (state === 'play') { if (stroke) finishStroke(); state = 'paused'; }
+    pointer.down = false;
+    const btn = state === 'paused'
+      ? '<button class="btn" id="resume" type="button">続ける</button>'
+      : '<button class="btn" id="start" type="button">はじめる</button>';
+    showCard(`<h2>遊び方</h2>${HOWTO_HTML}${btn}`);
+    if (state !== 'paused') state = 'howto';
+  });
+
+  function showCard(html) { card.innerHTML = html; overlay.hidden = false; }
+  function showStartCard() {
+    showCard(`
+      <h2>削り方はじめ</h2>
+      <p>画面のどこかを指で押さえて左右にこすると、鰹節が動いて刃で削れます。</p>
+      <p class="sub">指の高さが「押す力」です。緑の帯の中なら薄く、帯の上のほうほどもっと薄く削れます。右端のメーターで今の力が分かります。</p>
+      ${best ? `<p class="best-line">これまでの最高点 ${best.toLocaleString()}</p>` : ''}
+      <button class="btn" id="start" type="button">はじめる</button>`);
+  }
+
+  // はじめる：3・2・1 のカウントダウンのあとに始まる
+  let countdown = 0;
+  function startGame() {
+    initAudio();
+    if (audio && audio.ac.state === 'suspended') audio.ac.resume();
+    resetGame();
+    state = 'countdown';
+    countdown = 3;
+    overlay.hidden = true;
+  }
+
+  function resetGame() {
+    timeLeft = GAME_TIME; elapsed = 0;
+    score = grams = flakes = thinFlakes = combo = bestCombo = tWeighted = lenTotal = 0;
+    shrink = 0; stroke = null; stunUntil = 0;
+    particles.length = 0; settled.length = 0; popups.length = 0;
+    bx = G.planeL + G.blockL0 / 2 + 10;
+    redrawPile();
+  }
+
+  // ---- 1回の削り（刃の上を一方向に通過するまで）が終わったとき ----
+  function finishStroke() {
+    const s = stroke; stroke = null;
+    if (!s || s.len < 6) {
+      if (s && s.slip > 20) popup('スカッ', '#a9b2c2');
+      return;
+    }
+    const lenCm = s.len / G.pxPerCm;
+    const avgT = s.tsum / s.len;               // 平均の厚さ mm
+    const g = lenCm * BLOCK_WIDTH_CM * (avgT / 10) * DENSITY;
+    grams += g; flakes++; lenTotal += s.len; tWeighted += s.tsum;
+    shrink += g * W * 0.012;
+    clampBlock();
+    let pts, label, color;
+    if (avgT <= THIN_MAX) {
+      thinFlakes++; combo++; bestCombo = Math.max(bestCombo, combo);
+      const thinBonus = 1 + (THIN_MAX - avgT) / 0.06;    // 薄いほど 1〜2倍
+      const comboMult = Math.min(3, 1 + (combo - 1) * 0.1);
+      pts = lenCm * 10 * thinBonus * comboMult;
+      label = (avgT <= 0.035 ? '極薄！ ' : '薄い ') + avgT.toFixed(2) + 'mm';
+      color = '#f3c3a8';
+    } else {
+      combo = 0;
+      pts = lenCm * 2;
+      label = '厚い ' + avgT.toFixed(2) + 'mm';
+      color = '#e58a6a';
+    }
+    score += Math.round(pts);
+    popup(label + '  +' + Math.round(pts), color);
+  }
+  function popup(text, color) {
+    popups.push({ x: G.bladeX, y: G.planeTop - G.blockH - 18, text, color, life: 1 });
+  }
+
+  function spawnFlake(thickness, n) {
+    const thin = thickness <= THIN_MAX;
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        x: G.bladeX + (Math.random() - 0.5) * 8,
+        y: G.planeTop + 4,
+        vx: (Math.random() - 0.5) * 60,
+        vy: 20 + Math.random() * 40,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 6,
+        size: thin ? 5 + Math.random() * 5 : 3 + Math.random() * 4,
+        thin,
+        hue: thin ? 18 + Math.random() * 10 : 12 + Math.random() * 6,
+      });
+    }
+  }
+  function pileLevel() {
+    return Math.min(G.drawerBot - G.drawerTop - 8, grams * 3.2 + 2);
+  }
+  function settle(p) {
+    settled.push({ x: p.x / W, y: p.y / H, rot: p.rot, size: p.size, thin: p.thin, hue: p.hue });
+    if (settled.length > 1800) settled.splice(0, 300);
+    drawFlake(pileCanvas.getContext('2d'), p.x, p.y, p.rot, p.size, p.thin, p.hue);
+  }
+  function redrawPile() {
+    pileCanvas.width = W * dpr; pileCanvas.height = H * dpr;
+    const pc = pileCanvas.getContext('2d');
+    pc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (const s of settled) drawFlake(pc, s.x * W, s.y * H, s.rot, s.size, s.thin, s.hue);
+  }
+
+  // ---- 毎フレームの更新 ----
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    update(dt, now);
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt, now) {
+    if (state === 'countdown') {
+      countdown -= dt;
+      if (countdown <= 0) { state = 'play'; popup('はじめ！', '#d9b57a'); }
+    }
+    if (state === 'play') {
+      elapsed += dt; timeLeft -= dt;
+      if (timeLeft <= 0) { timeLeft = 0; endGame(); }
+    }
+    // 緑の帯（ちょうどいい力加減）は木目に合わせてゆっくり動き、だんだん細くなる
+    // 中心は 0.27〜0.67 の間。いちばん下がっても帯の下に「厚削り」の余地が残る
+    const c = 0.47 + 0.14 * Math.sin(elapsed * 0.7) + 0.06 * Math.sin(elapsed * 1.9 + 1);
+    const w = 0.17 - 0.07 * Math.min(1, elapsed / GAME_TIME);
+    zone.lo = c - w / 2; zone.hi = c + w / 2;
+
+    // 鰹節を指に追従させる
+    const prev = bx;
+    if (pointer.down && now > stunUntil) { bx = pointer.x + pointer.grab; clampBlock(); }
+    const dx = bx - prev;
+    const L = blockLen();
+    const over = G.bladeX > bx - L / 2 + 4 && G.bladeX < bx + L / 2 - 4;
+    const dir = Math.sign(dx);
+    cutState = 'none';
+
+    if (state === 'play' && pointer.down && over && Math.abs(dx) > 0.2) {
+      if (stroke && dir !== stroke.dir) finishStroke();
+      if (!stroke) stroke = { dir, len: 0, tsum: 0, slip: 0 };
+      const p = pressureAt(pointer.y);
+      const d = Math.abs(dx);
+      if (p < zone.lo) {
+        cutState = 'slip'; stroke.slip += d;              // 力が弱くて刃がかからない
+      } else if (p <= zone.hi) {
+        cutState = 'thin';                                // 帯の上端ほど薄い
+        const t = 0.02 + ((p - zone.lo) / (zone.hi - zone.lo)) * 0.06;
+        stroke.len += d; stroke.tsum += t * d;
+        spawnFlake(t, Math.ceil(d / 7));
+      } else if (p < zone.hi + 0.22) {
+        cutState = 'thick';
+        const t = 0.1 + ((p - zone.hi) / 0.22) * 0.8;
+        stroke.len += d; stroke.tsum += t * d;
+        spawnFlake(t, Math.ceil(d / 5));
+      } else {
+        // 押しすぎ：刃に引っかかって止まる
+        stroke.len += d; stroke.tsum += 1.2 * d;
+        finishStroke();
+        combo = 0;
+        stunUntil = now + 350; shake = 1;
+        popup('ガリッ！', '#e58a6a');
+        thud();
+        try { if (!muted && navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+      }
+    } else if (stroke && (!over || !pointer.down)) {
+      finishStroke();
+    }
+    updateSound(Math.abs(dx));
+
+    // 削り節が落ちて引き出しにたまる
+    const landBase = G.drawerBot - 3;
+    const lvl = pileLevel();
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vy += 260 * dt; p.vx *= 0.98;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      if (!p.land) p.land = landBase - Math.random() * lvl;
+      if (p.y >= p.land) { p.y = p.land; settle(p); particles.splice(i, 1); }
+    }
+    for (let i = popups.length - 1; i >= 0; i--) {
+      popups[i].life -= dt * 0.9; popups[i].y -= 24 * dt;
+      if (popups[i].life <= 0) popups.splice(i, 1);
+    }
+    shake = Math.max(0, shake - dt * 4);
+
+    hud.time.textContent = timeLeft.toFixed(1);
+    hud.score.textContent = score.toLocaleString();
+    hud.gram.textContent = grams.toFixed(1) + ' g';
+    hud.combo.textContent = combo;
+    hud.best.textContent = Math.max(best, score).toLocaleString();
+  }
+
+  function endGame() {
+    if (stroke) finishStroke();
+    state = 'result';
+    const avgT = lenTotal ? tWeighted / lenTotal : 0;
+    const thinRate = flakes ? Math.round(thinFlakes / flakes * 100) : 0;
+    let rank, comment;
+    // 段位の基準（30秒用）。実際に遊んで4万点前後が「ふつう」だったので、そこを一人前の手前に置く
+    if (score >= 80000) { rank = '花かつお名人'; comment = '向こうが透けるほどの削り。料亭から声がかかります。'; }
+    else if (score >= 50000) { rank = '一人前の削り師'; comment = 'ふわっと踊る、いい削り節です。'; }
+    else if (score >= 25000) { rank = '見習い'; comment = '力加減をつかみかけています。帯の上のほうを狙って。'; }
+    else { rank = '粉がつお'; comment = 'まずは緑の帯の中で、ゆっくり大きく動かしてみましょう。'; }
+    const newBest = score > best;
+    if (newBest) { best = score; try { localStorage.setItem('katsuo-best', String(best)); } catch (e) {} }
+    showCard(`
+      <h2>${rank}</h2>
+      <p>${comment}</p>
+      <dl class="stats">
+        <dt>点数</dt><dd>${score.toLocaleString()}${newBest ? '（自己ベスト）' : ''}</dd>
+        <dt>削った量</dt><dd>${grams.toFixed(1)} g（小袋 ${(grams / PACK_G).toFixed(1)} 袋分）</dd>
+        <dt>削った枚数</dt><dd>${flakes} 枚</dd>
+        <dt>平均の厚さ</dt><dd>${avgT.toFixed(3)} mm</dd>
+        <dt>薄削りの割合</dt><dd>${thinRate} %</dd>
+        <dt>最大連続</dt><dd>${bestCombo} 枚</dd>
+        <dt>自己ベスト</dt><dd>${best.toLocaleString()}</dd>
+      </dl>
+      <button class="btn" id="start" type="button">もう一度</button>`);
+    pointer.down = false;
+  }
+
+  // ---- 描画 ----
+  function drawFlake(c, x, y, rot, size, thin, hue) {
+    c.save();
+    c.translate(x, y); c.rotate(rot);
+    if (thin) {
+      c.fillStyle = `hsla(${hue}, 70%, 82%, 0.55)`;
+      c.strokeStyle = `hsla(${hue}, 60%, 62%, 0.6)`;
+    } else {
+      c.fillStyle = `hsla(${hue}, 55%, 32%, 0.95)`;
+      c.strokeStyle = `hsla(${hue}, 50%, 20%, 1)`;
+    }
+    c.lineWidth = 1;
+    c.beginPath();
+    c.ellipse(0, 0, size, size * (thin ? 0.45 : 0.6), 0, 0, Math.PI * 2);
+    c.fill();
+    c.beginPath();
+    c.arc(0, -size * 0.1, size * 0.6, 0.3, Math.PI - 0.3);
+    c.stroke();
+    c.restore();
+  }
+
+  function draw(now) {
+    ctx.clearRect(0, 0, W, H);
+    // 背景：奥の壁
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#1e2a3d'); bg.addColorStop(1, '#141b27');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // 力加減の帯
+    const yLo = yAt(zone.lo), yHi = yAt(zone.hi);
+    ctx.fillStyle = 'rgba(159, 208, 143, 0.13)';
+    ctx.fillRect(0, yLo, W, yHi - yLo);
+    ctx.strokeStyle = 'rgba(159, 208, 143, 0.7)';
+    ctx.setLineDash([6, 6]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, yLo); ctx.lineTo(W, yLo); ctx.moveTo(0, yHi); ctx.lineTo(W, yHi); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = `12px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.fillStyle = 'rgba(159, 208, 143, 0.9)';
+    ctx.fillText('ちょうどいい力加減', 10, yLo - 6);
+    ctx.fillStyle = 'rgba(169, 178, 194, 0.6)';
+    ctx.fillText('↑ 弱い（すべる）', W - 136, G.fieldTop + 14);
+
+    // 右端の力メーター（指で帯が隠れても今の力が分かるように）
+    const gx = W - 14;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(gx - 3, G.fieldTop, 6, G.fieldBot - G.fieldTop);
+    ctx.fillStyle = 'rgba(159, 208, 143, 0.85)';
+    ctx.fillRect(gx - 3, yLo, 6, yHi - yLo);
+    ctx.fillStyle = 'rgba(229, 138, 106, 0.6)';
+    ctx.fillRect(gx - 3, yAt(Math.min(1, zone.hi + 0.22)), 6, G.fieldBot - yAt(Math.min(1, zone.hi + 0.22)));
+
+    // 削り器の本体（檜の箱）
+    const { planeL, planeR, planeTop, planeBot, bladeX } = G;
+    const wood = ctx.createLinearGradient(0, planeTop, 0, planeBot);
+    wood.addColorStop(0, '#e2c088'); wood.addColorStop(1, '#b8915a');
+    ctx.fillStyle = wood;
+    ctx.fillRect(planeL, planeTop, planeR - planeL, planeBot - planeTop);
+    // 木目
+    ctx.strokeStyle = 'rgba(120, 80, 40, 0.18)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const y = planeTop + 6 + i * (planeBot - planeTop) / 6;
+      ctx.beginPath(); ctx.moveTo(planeL, y);
+      ctx.bezierCurveTo(W * 0.3, y + 4, W * 0.6, y - 4, planeR, y + 2); ctx.stroke();
+    }
+    // 引き出しの中（断面で見せる）
+    const dL = planeL + 14, dR = planeR - 14;
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(dL, G.drawerTop, dR - dL, G.drawerBot - G.drawerTop);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(dL, G.drawerTop, dR - dL, 6);
+    ctx.drawImage(pileCanvas, 0, 0, W, H);
+    // 天板
+    ctx.fillStyle = '#c9a46c';
+    ctx.fillRect(planeL, planeTop - 4, planeR - planeL, 8);
+    // 刃
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(bladeX - 6, planeTop - 4, 12, 10);
+    ctx.fillStyle = '#cfd6de';
+    ctx.beginPath(); ctx.moveTo(bladeX - 6, planeTop - 3); ctx.lineTo(bladeX + 6, planeTop - 3); ctx.lineTo(bladeX - 6, planeTop + 6); ctx.closePath(); ctx.fill();
+
+    // 落ちていく削り節
+    for (const p of particles) drawFlake(ctx, p.x, p.y, p.rot, p.size, p.thin, p.hue);
+
+    // 鰹節
+    const L = blockLen(), bh = G.blockH;
+    const sx = shake && !reduceMotion ? Math.sin(now / 20) * 4 * shake : 0;
+    const x0 = bx - L / 2 + sx, y0 = planeTop - 4 - bh;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x0 + bh * 0.5, y0);
+    ctx.lineTo(x0 + L - bh * 0.5, y0);
+    ctx.quadraticCurveTo(x0 + L, y0 + bh * 0.2, x0 + L, y0 + bh);
+    ctx.lineTo(x0, y0 + bh);
+    ctx.quadraticCurveTo(x0, y0 + bh * 0.2, x0 + bh * 0.5, y0);
+    ctx.closePath();
+    const crust = ctx.createLinearGradient(0, y0, 0, y0 + bh);
+    crust.addColorStop(0, '#4a2a1c'); crust.addColorStop(0.7, '#6b3a26'); crust.addColorStop(1, '#8a4b30');
+    ctx.fillStyle = crust; ctx.fill();
+    ctx.clip();
+    // 削った面（下側の明るい断面）
+    ctx.fillStyle = '#c7735a';
+    ctx.fillRect(x0, y0 + bh - 6, L, 6);
+    // 表面のカビ付け模様
+    ctx.fillStyle = 'rgba(200, 170, 120, 0.12)';
+    for (let i = 0; i < 9; i++) {
+      const fx = x0 + ((i * 53) % 100) / 100 * L, fy = y0 + 6 + ((i * 37) % 60) / 100 * bh;
+      ctx.beginPath(); ctx.ellipse(fx, fy, 10, 3, 0.2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // 指の位置（押す力）
+    if (pointer.down && state === 'play') {
+      const p = pressureAt(pointer.y);
+      const col = p < zone.lo ? '#a9b2c2' : p <= zone.hi ? '#9fd08f' : '#e58a6a';
+      ctx.strokeStyle = col; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(pointer.x, pointer.y, 26, 0, Math.PI * 2); ctx.stroke();
+      // メーター上の現在位置
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(W - 20, pointer.y); ctx.lineTo(W - 32, pointer.y - 7); ctx.lineTo(W - 32, pointer.y + 7); ctx.closePath(); ctx.fill();
+      ctx.fillRect(W - 18, pointer.y - 1.5, 10, 3);
+      ctx.beginPath(); ctx.moveTo(pointer.x, pointer.y + (pointer.y < y0 ? 26 : -26)); ctx.lineTo(bx, y0); ctx.globalAlpha = 0.35; ctx.stroke(); ctx.globalAlpha = 1;
+    }
+
+    // 判定の文字
+    ctx.textAlign = 'center';
+    ctx.font = `700 15px ${getComputedStyle(document.body).fontFamily}`;
+    for (const t of popups) {
+      ctx.globalAlpha = Math.max(0, t.life);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, t.x, t.y);
+    }
+    ctx.globalAlpha = 1;
+
+    // カウントダウンの数字
+    if (state === 'countdown') {
+      const n = Math.ceil(countdown);
+      const frac = countdown - Math.floor(countdown);   // 1→0 で小さくなる
+      ctx.fillStyle = 'rgba(15, 20, 30, 0.45)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = reduceMotion ? 1 : 0.4 + 0.6 * frac;
+      ctx.fillStyle = '#d9b57a';
+      ctx.font = `${Math.round(Math.min(W, H) * (reduceMotion ? 0.3 : 0.22 + 0.1 * frac))}px "Yuji Syuku", serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(n), W / 2, H * 0.32);
+      ctx.textBaseline = 'alphabetic';
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = 'left';
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  showStartCard();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
